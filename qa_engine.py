@@ -1,17 +1,24 @@
-# qa_engine.py
-
 from transformers import pipeline
 
-class QAEngine:
-    def __init__(self, model_name='distilbert-base-uncased-distilled-squad'):
-        self.qa_pipeline = pipeline('question-answering', model=model_name)
+# HuggingFace small instruction model
+qa_model = pipeline(
+    "text-generation",
+    model="mistralai/Mistral-7B-Instruct-v0.3",
+    max_new_tokens=200,
+    device_map="auto"
+)
 
-    def answer_question(self, question, context):
-        result = self.qa_pipeline(question=question, context=context)
-        return result['answer'], result['score']
+def generate_answer(question, context):
+    prompt = f"""
+You are a PDF assistant. Answer based only on the following text.
 
-    def get_embedding(self, text):
-        # Placeholder for embedding logic
-        return None  # TODO: Implement Hugging Face embeddings
+CONTEXT:
+{context}
 
-# TODO: Replace with a more suitable LLM or embedding model
+QUESTION:
+{question}
+
+ANSWER:
+"""
+    response = qa_model(prompt)[0]["generated_text"]
+    return response.replace(prompt, "").strip()

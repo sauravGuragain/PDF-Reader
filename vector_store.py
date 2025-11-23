@@ -1,21 +1,29 @@
-# vector_store.py
-
 import faiss
+from sentence_transformers import SentenceTransformer
 import numpy as np
 
-class VectorStore:
-    def __init__(self):
-        self.index = faiss.IndexFlatL2(768)  # Assuming 768-dim embeddings
-        self.texts = []
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-    def add_vectors(self, embeddings, texts):
-        embeddings = np.array(embeddings, dtype='float32')
-        self.index.add(embeddings)
-        self.texts.extend(texts)
+CHUNK_SIZE = 500
 
-    def search(self, query_embedding, k=5):
-        query_embedding = np.array([query_embedding], dtype='float32')
-        distances, indices = self.index.search(query_embedding, k)
-        return [(self.texts[i], distances[0][j]) for j, i in enumerate(indices[0])]
+def create_chunks(text):
+    chunks = []
+    for i in range(0, len(text), CHUNK_SIZE):
+        chunks.append(text[i:i+CHUNK_SIZE])
+    return chunks
 
-# TODO: Integrate with embeddings from qa_engine
+def build_faiss_index(chunks):
+    embeddings = model.encode(chunks)
+    embeddings = np.array(embeddings).astype("float32")
+    
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings)
+
+    return index, chunks
+
+def search(query, index, chunks, top_k=3):
+    query_embed = model.encode([query]).astype("float32")
+    distances, indices = index.search(query_embed, top_k)
+    
+    results = [chunks[i] for i in indices[0]]
+    return results
